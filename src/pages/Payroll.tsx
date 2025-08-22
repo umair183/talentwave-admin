@@ -1,39 +1,38 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Calculator, FileText, Download, TrendingUp, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DollarSign, Download, FileText, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { usePayroll } from "@/hooks/usePayroll";
 
 const Payroll = () => {
-  const payrollSummary = {
-    currentMonth: "March 2024",
-    totalAmount: "$89,240",
-    employeeCount: 248,
-    status: "Processed",
-    nextPayDate: "March 31, 2024"
-  };
+  const { data: payrollData, isLoading, error } = usePayroll();
 
-  const payrollHistory = [
-    { month: "March 2024", amount: "$89,240", employees: 248, status: "Processed", date: "2024-03-15" },
-    { month: "February 2024", amount: "$87,560", employees: 245, status: "Completed", date: "2024-02-15" },
-    { month: "January 2024", amount: "$85,890", employees: 242, status: "Completed", date: "2024-01-15" },
-    { month: "December 2023", amount: "$91,200", employees: 240, status: "Completed", date: "2023-12-15" },
-  ];
+  const totalGross = payrollData?.reduce((sum, item) => sum + item.gross_salary, 0) || 0;
+  const totalDeductions = payrollData?.reduce((sum, item) => sum + item.deductions, 0) || 0;
+  const totalNet = payrollData?.reduce((sum, item) => sum + item.net_salary, 0) || 0;
 
-  const departmentPayroll = [
-    { department: "Engineering", employees: 45, amount: "$32,400", avgSalary: "$8,640" },
-    { department: "Sales", employees: 28, amount: "$18,200", avgSalary: "$6,500" },
-    { department: "Marketing", employees: 22, amount: "$14,300", avgSalary: "$6,500" },
-    { department: "Operations", employees: 15, amount: "$9,750", avgSalary: "$6,500" },
-    { department: "Finance", employees: 12, amount: "$8,580", avgSalary: "$7,150" },
-    { department: "HR", employees: 8, amount: "$6,010", avgSalary: "$7,513" },
-  ];
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Loading payroll data...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  const pendingApprovals = [
-    { employee: "Sarah Johnson", type: "Overtime", amount: "$420", status: "Pending" },
-    { employee: "Michael Chen", type: "Bonus", amount: "$1,500", status: "Pending" },
-    { employee: "Emily Rodriguez", type: "Commission", amount: "$890", status: "Pending" },
-  ];
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-destructive">Error loading payroll data: {error.message}</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -46,193 +45,106 @@ const Payroll = () => {
           </div>
           <div className="flex space-x-2">
             <Button variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Generate Report
+              <Download className="h-4 w-4 mr-2" />
+              Export Report
             </Button>
             <Button className="bg-primary hover:bg-primary-hover">
-              <Calculator className="h-4 w-4 mr-2" />
-              Process Payroll
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Payroll
             </Button>
           </div>
         </div>
 
-        {/* Current Payroll Summary */}
-        <Card className="shadow-sm border-l-4 border-l-primary">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              <span>Current Payroll - {payrollSummary.currentMonth}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Amount</p>
-                <p className="text-2xl font-bold text-primary">{payrollSummary.totalAmount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Employees</p>
-                <p className="text-2xl font-bold text-foreground">{payrollSummary.employeeCount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge className="bg-success text-success-foreground">{payrollSummary.status}</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Next Pay Date</p>
-                <p className="text-lg font-semibold text-foreground">{payrollSummary.nextPayDate}</p>
-              </div>
-              <div className="flex items-center">
-                <Button className="bg-accent hover:bg-accent/90">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Report
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Department Breakdown */}
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-accent" />
-                <span>Department Breakdown</span>
-              </CardTitle>
-              <CardDescription>Payroll distribution by department</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {departmentPayroll.map((dept, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-foreground">{dept.department}</p>
-                      <p className="text-sm text-muted-foreground">{dept.employees} employees</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-foreground">{dept.amount}</p>
-                      <p className="text-sm text-muted-foreground">Avg: {dept.avgSalary}</p>
-                    </div>
-                  </div>
-                ))}
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-8 w-8 text-primary" />
+                <div>
+                  <p className="text-2xl font-bold text-foreground">${totalGross.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">Total Gross Salary</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Pending Approvals */}
           <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5 text-warning" />
-                <span>Pending Approvals</span>
-              </CardTitle>
-              <CardDescription>Items requiring approval before processing</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {pendingApprovals.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                    <div>
-                      <p className="font-medium text-foreground">{item.employee}</p>
-                      <p className="text-sm text-muted-foreground">{item.type}</p>
-                    </div>
-                    <div className="text-right space-x-2">
-                      <span className="font-semibold text-foreground">{item.amount}</span>
-                      <Badge variant="outline" className="text-warning border-warning">
-                        {item.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex space-x-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Approve All
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Review
-                  </Button>
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="h-8 w-8 text-warning" />
+                <div>
+                  <p className="text-2xl font-bold text-foreground">${totalDeductions.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">Total Deductions</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-8 w-8 text-success" />
+                <div>
+                  <p className="text-2xl font-bold text-foreground">${totalNet.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">Total Net Salary</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Payroll History */}
+        {/* Payroll Table */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-secondary" />
-              <span>Payroll History</span>
+              <FileText className="h-5 w-5 text-primary" />
+              <span>Payroll Records</span>
             </CardTitle>
-            <CardDescription>Previous payroll periods and processing records</CardDescription>
+            <CardDescription>Recent payroll processing records</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Period</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Employees</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payrollHistory.map((record, index) => (
-                    <tr key={index} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4 text-foreground">{record.month}</td>
-                      <td className="py-3 px-4 font-semibold text-primary">{record.amount}</td>
-                      <td className="py-3 px-4 text-foreground">{record.employees}</td>
-                      <td className="py-3 px-4">
-                        <Badge className="bg-success text-success-foreground">
-                          {record.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">{record.date}</td>
-                      <td className="py-3 px-4">
-                        <Button variant="ghost" size="sm">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Payroll Actions</CardTitle>
-            <CardDescription>Common payroll management tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-3 p-4 bg-primary-light rounded-lg hover:bg-primary-light/80 transition-colors cursor-pointer">
-              <Calculator className="h-6 w-6 text-primary" />
-              <div>
-                <p className="font-medium text-foreground">Calculate Payroll</p>
-                <p className="text-xs text-muted-foreground">Process current period</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 p-4 bg-accent-light rounded-lg hover:bg-accent-light/80 transition-colors cursor-pointer">
-              <Users className="h-6 w-6 text-accent" />
-              <div>
-                <p className="font-medium text-foreground">Employee Salaries</p>
-                <p className="text-xs text-muted-foreground">Manage salary details</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 p-4 bg-secondary-light rounded-lg hover:bg-secondary-light/80 transition-colors cursor-pointer">
-              <FileText className="h-6 w-6 text-secondary" />
-              <div>
-                <p className="font-medium text-foreground">Tax Reports</p>
-                <p className="text-xs text-muted-foreground">Generate tax documents</p>
-              </div>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee ID</TableHead>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Pay Period</TableHead>
+                  <TableHead className="text-right">Gross Salary</TableHead>
+                  <TableHead className="text-right">Deductions</TableHead>
+                  <TableHead className="text-right">Net Salary</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payrollData?.map((payroll) => (
+                  <TableRow key={payroll.id}>
+                    <TableCell className="font-medium">{payroll.employees?.employee_id}</TableCell>
+                    <TableCell>{payroll.employees?.first_name} {payroll.employees?.last_name}</TableCell>
+                    <TableCell>
+                      {new Date(payroll.pay_period_start).toLocaleDateString()} - {new Date(payroll.pay_period_end).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">${payroll.gross_salary.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${payroll.deductions.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">${payroll.net_salary.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={
+                          payroll.status === 'paid' ? 'default' : 
+                          payroll.status === 'processed' ? 'secondary' : 'outline'
+                        }
+                      >
+                        {payroll.status.charAt(0).toUpperCase() + payroll.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>

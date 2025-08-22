@@ -8,68 +8,95 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, UserPlus, Search, Mail, Phone, MapPin } from "lucide-react";
 import { useState } from "react";
+import { useEmployees, useCreateEmployee } from "@/hooks/useEmployees";
+import { useDepartments } from "@/hooks/useDepartments";
+import { toast } from "sonner";
 
 const Employees = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [newEmployee, setNewEmployee] = useState({
-    firstName: "",
-    lastName: "",
+    first_name: "",
+    last_name: "",
     email: "",
     phone: "",
     position: "",
-    department: "",
+    department_id: "",
     salary: "",
-    startDate: ""
+    start_date: ""
   });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const employees = [
-    {
-      id: "EMP001",
-      name: "Sarah Johnson",
-      position: "Software Engineer",
-      department: "Engineering",
-      email: "sarah.johnson@company.com",
-      phone: "+1 (555) 123-4567",
-      status: "Active",
-      startDate: "2023-01-15"
-    },
-    {
-      id: "EMP002", 
-      name: "Michael Chen",
-      position: "HR Manager",
-      department: "Human Resources",
-      email: "michael.chen@company.com",
-      phone: "+1 (555) 234-5678",
-      status: "Active",
-      startDate: "2022-08-20"
-    },
-    {
-      id: "EMP003",
-      name: "Emily Rodriguez",
-      position: "Marketing Specialist",
-      department: "Marketing",
-      email: "emily.rodriguez@company.com", 
-      phone: "+1 (555) 345-6789",
-      status: "On Leave",
-      startDate: "2023-03-10"
-    },
-    {
-      id: "EMP004",
-      name: "David Kim",
-      position: "Finance Analyst",
-      department: "Finance",
-      email: "david.kim@company.com",
-      phone: "+1 (555) 456-7890", 
-      status: "Active",
-      startDate: "2023-05-01"
+  const { data: employees, isLoading, error } = useEmployees();
+  const { data: departments } = useDepartments();
+  const createEmployeeMutation = useCreateEmployee();
+
+  const filteredEmployees = employees?.filter(employee => {
+    const fullName = `${employee.first_name} ${employee.last_name}`.toLowerCase();
+    const searchTerm = searchQuery.toLowerCase();
+    return (
+      fullName.includes(searchTerm) ||
+      employee.departments?.name.toLowerCase().includes(searchTerm) ||
+      employee.position.toLowerCase().includes(searchTerm)
+    );
+  }) || [];
+
+  const handleCreateEmployee = async () => {
+    if (!newEmployee.first_name || !newEmployee.last_name || !newEmployee.email || !newEmployee.position || !newEmployee.start_date) {
+      toast.error("Please fill in all required fields");
+      return;
     }
-  ];
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.position.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    try {
+      await createEmployeeMutation.mutateAsync({
+        employee_id: `EMP${Date.now().toString().slice(-6)}`, // Generate simple ID
+        first_name: newEmployee.first_name,
+        last_name: newEmployee.last_name,
+        email: newEmployee.email,
+        phone: newEmployee.phone || null,
+        position: newEmployee.position,
+        department_id: newEmployee.department_id || null,
+        salary: newEmployee.salary ? parseFloat(newEmployee.salary) : null,
+        start_date: newEmployee.start_date,
+        status: 'active' as const,
+      });
+
+      toast.success("Employee created successfully");
+      setIsDialogOpen(false);
+      setNewEmployee({
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone: "",
+        position: "",
+        department_id: "",
+        salary: "",
+        start_date: ""
+      });
+    } catch (error) {
+      toast.error("Failed to create employee");
+      console.error("Error creating employee:", error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Loading employees...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-destructive">Error loading employees: {error.message}</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -80,7 +107,7 @@ const Employees = () => {
             <Users className="h-6 w-6 text-primary" />
             <h1 className="text-3xl font-bold text-foreground">Employee Management</h1>
           </div>
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary-hover">
                 <UserPlus className="h-4 w-4 mr-2" />
@@ -100,8 +127,8 @@ const Employees = () => {
                   <Input
                     id="firstName"
                     placeholder="Enter first name"
-                    value={newEmployee.firstName}
-                    onChange={(e) => setNewEmployee({...newEmployee, firstName: e.target.value})}
+                    value={newEmployee.first_name}
+                    onChange={(e) => setNewEmployee({...newEmployee, first_name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
@@ -109,8 +136,8 @@ const Employees = () => {
                   <Input
                     id="lastName"
                     placeholder="Enter last name"
-                    value={newEmployee.lastName}
-                    onChange={(e) => setNewEmployee({...newEmployee, lastName: e.target.value})}
+                    value={newEmployee.last_name}
+                    onChange={(e) => setNewEmployee({...newEmployee, last_name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
@@ -143,16 +170,16 @@ const Employees = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Select onValueChange={(value) => setNewEmployee({...newEmployee, department: value})}>
+                  <Select onValueChange={(value) => setNewEmployee({...newEmployee, department_id: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="engineering">Engineering</SelectItem>
-                      <SelectItem value="hr">Human Resources</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="sales">Sales</SelectItem>
+                      {departments?.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -170,14 +197,20 @@ const Employees = () => {
                   <Input
                     id="startDate"
                     type="date"
-                    value={newEmployee.startDate}
-                    onChange={(e) => setNewEmployee({...newEmployee, startDate: e.target.value})}
+                    value={newEmployee.start_date}
+                    onChange={(e) => setNewEmployee({...newEmployee, start_date: e.target.value})}
                   />
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline">Cancel</Button>
-                <Button className="bg-primary hover:bg-primary-hover">Add Employee</Button>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                <Button 
+                  className="bg-primary hover:bg-primary-hover" 
+                  onClick={handleCreateEmployee}
+                  disabled={createEmployeeMutation.isPending}
+                >
+                  {createEmployeeMutation.isPending ? "Adding..." : "Add Employee"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -206,20 +239,20 @@ const Employees = () => {
                 <div className="flex items-center justify-between">
                   <div className="w-12 h-12 bg-primary-light rounded-full flex items-center justify-center">
                     <span className="text-lg font-semibold text-primary">
-                      {employee.name.split(' ').map(n => n[0]).join('')}
+                      {employee.first_name[0]}{employee.last_name[0]}
                     </span>
                   </div>
-                  <Badge variant={employee.status === 'Active' ? 'default' : 'secondary'}>
-                    {employee.status}
+                  <Badge variant={employee.status === 'active' ? 'default' : 'secondary'}>
+                    {employee.status === 'active' ? 'Active' : employee.status === 'on_leave' ? 'On Leave' : 'Inactive'}
                   </Badge>
                 </div>
-                <CardTitle className="text-lg">{employee.name}</CardTitle>
+                <CardTitle className="text-lg">{employee.first_name} {employee.last_name}</CardTitle>
                 <CardDescription>{employee.position}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center space-x-2 text-sm">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{employee.department}</span>
+                  <span className="text-muted-foreground">{employee.departments?.name || 'No Department'}</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
@@ -227,11 +260,11 @@ const Employees = () => {
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{employee.phone}</span>
+                  <span className="text-muted-foreground">{employee.phone || 'No phone'}</span>
                 </div>
                 <div className="pt-2 border-t">
                   <p className="text-xs text-muted-foreground">
-                    Employee ID: {employee.id} • Started: {employee.startDate}
+                    Employee ID: {employee.employee_id} • Started: {new Date(employee.start_date).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex space-x-2">
